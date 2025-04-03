@@ -17,6 +17,7 @@ An AI-powered resume enhancement application that helps users improve their resu
 - Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
 - Python 3.8 or higher installed
 - Git
+- Google Gemini API key (for AI features) - see [Setting Up Google Gemini AI](#setting-up-google-gemini-ai) section
 
 ### Installation
 
@@ -73,6 +74,25 @@ If you prefer to run the servers manually:
    npm run dev
    ```
 
+## Setting Up Google Gemini AI
+
+This application uses Google's Gemini API to provide AI-powered resume analysis and enhancement. To get the full AI experience, you'll need to configure a Gemini API key:
+
+1. Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Sign in with your Google account
+3. Click on "Get API key" or "Create API key"
+4. Copy your new API key
+
+### Configuring Your API Key
+
+1. Create a `.env` file in the root directory (or rename `.env.example` to `.env`)
+2. Add your Gemini API key to the file:
+   ```
+   VITE_GEMINI_API_KEY=your_gemini_api_key_here
+   ```
+
+If you don't configure a Gemini API key, the application will fall back to using predefined mock data and rule-based enhancements.
+
 ## Python Backend for PDF Extraction
 
 The application uses a Python backend with PyMuPDF for accurate PDF text extraction:
@@ -109,6 +129,7 @@ If you encounter issues with PDF text extraction:
 - `backend/` - Python backend for PDF processing
 - `public/` - Static assets
 - `start.sh` - Convenience script to start both frontend and backend
+- `.env` - Environment variables including Gemini API key
 
 ## License
 
