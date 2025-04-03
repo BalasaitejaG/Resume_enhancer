@@ -9,7 +9,13 @@ import json
 import fitz  # PyMuPDF
 import sys
 import argparse
+import logging
 from typing import Dict, List, Any, Optional
+
+# Set up logging
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 
 def extract_text_from_pdf(pdf_path: str) -> str:
@@ -23,51 +29,89 @@ def extract_text_from_pdf(pdf_path: str) -> str:
         Extracted text with formatting preserved
     """
     try:
+        logger.info(f"Opening PDF file: {pdf_path}")
+        # Check if file exists
+        if not os.path.isfile(pdf_path):
+            logger.error(f"PDF file does not exist: {pdf_path}")
+            return ""
+
+        # Check file size
+        file_size = os.path.getsize(pdf_path)
+        logger.info(f"PDF file size: {file_size} bytes")
+        if file_size == 0:
+            logger.error("PDF file is empty")
+            return ""
+
         # Open the PDF
-        doc = fitz.open(pdf_path)
+        try:
+            doc = fitz.open(pdf_path)
+            logger.info(f"Successfully opened PDF with {len(doc)} pages")
+        except Exception as e:
+            logger.error(f"Failed to open PDF with fitz: {e}")
+            return ""
+
+        if len(doc) == 0:
+            logger.warning("PDF has no pages")
+            return ""
 
         full_text = []
 
         # Process each page
         for page_num in range(len(doc)):
-            page = doc[page_num]
+            try:
+                page = doc[page_num]
+                logger.info(f"Processing page {page_num+1}/{len(doc)}")
 
-            # Extract text blocks with their bounding boxes
-            blocks = page.get_text("dict")["blocks"]
+                # Extract text blocks with their bounding boxes
+                blocks = page.get_text("dict")["blocks"]
+                logger.info(f"Found {len(blocks)} blocks on page {page_num+1}")
 
-            # Sort blocks by vertical position (top to bottom)
-            blocks.sort(key=lambda b: b["bbox"][1])
+                # Sort blocks by vertical position (top to bottom)
+                blocks.sort(key=lambda b: b["bbox"][1])
 
-            page_text = []
+                page_text = []
 
-            # Process each block
-            for block in blocks:
-                if "lines" not in block:
-                    continue
-
-                # Sort lines within block (top to bottom)
-                block["lines"].sort(key=lambda l: l["bbox"][1])
-
-                for line in block["lines"]:
-                    if "spans" not in line:
+                # Process each block
+                for block in blocks:
+                    if "lines" not in block:
                         continue
 
-                    # Sort spans within line (left to right)
-                    line["spans"].sort(key=lambda s: s["bbox"][0])
+                    # Sort lines within block (top to bottom)
+                    block["lines"].sort(key=lambda l: l["bbox"][1])
 
-                    # Extract and join text from spans
-                    line_text = " ".join(span["text"]
-                                         for span in line["spans"])
-                    page_text.append(line_text)
+                    for line in block["lines"]:
+                        if "spans" not in line:
+                            continue
 
-            # Join all lines with newlines
-            full_text.append("\n".join(page_text))
+                        # Sort spans within line (left to right)
+                        line["spans"].sort(key=lambda s: s["bbox"][0])
+
+                        # Extract and join text from spans
+                        line_text = " ".join(span["text"]
+                                             for span in line["spans"])
+                        page_text.append(line_text)
+
+                # Join all lines with newlines
+                full_text.append("\n".join(page_text))
+                logger.info(
+                    f"Extracted {len(page_text)} lines from page {page_num+1}")
+            except Exception as e:
+                logger.error(f"Error processing page {page_num+1}: {e}")
+                # Continue with next page instead of failing completely
 
         # Join all pages with double newlines
-        return "\n\n".join(full_text)
+        result = "\n\n".join(full_text)
+        logger.info(f"Total extracted text length: {len(result)} characters")
+
+        # If text is too short, it might indicate extraction issues
+        if len(result) < 50 and len(doc) > 0:
+            logger.warning(
+                f"Extracted text is suspiciously short ({len(result)} chars) for a {len(doc)}-page document")
+
+        return result
 
     except Exception as e:
-        print(f"Error extracting text from PDF: {e}", file=sys.stderr)
+        logger.error(f"Error extracting text from PDF: {e}", exc_info=True)
         return ""
 
 
@@ -133,13 +177,13 @@ def extract_sections(text: str) -> Dict[str, str]:
 
         # Section headers are often short, capitalized, or have special formatting
         if (line and len(line) < 50 and  # Not too long
-            (line.isupper() or  # All caps like "EXPERIENCE"
-                     line.endswith(':') or  # Has colon like "Experience:"
-                     # Bullet points often start sections
-                     line.startswith('•') or
-                     # Markdown-like formatting
-                     any(line.startswith(marker) for marker in ["#", "-", "*"]))
-            ):
+                (line.isupper() or  # All caps like "EXPERIENCE"
+                 line.endswith(':') or  # Has colon like "Experience:"
+                 # Bullet points often start sections
+                         line.startswith('•') or
+                         # Markdown-like formatting
+                         any(line.startswith(marker) for marker in ["#", "-", "*"]))
+                ):
             # Try to match with known section keywords
             for section, keywords in section_keywords.items():
                 if any(keyword in line_lower for keyword in keywords):

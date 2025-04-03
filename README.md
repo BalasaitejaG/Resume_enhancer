@@ -46,6 +46,10 @@ An AI-powered resume enhancement application that helps users improve their resu
 For the best experience with PDF resume uploads, use the provided start script that launches both the frontend and the Python backend:
 
 ```bash
+# Make the script executable first (only needed once)
+chmod +x start.sh
+
+# Run the script
 ./start.sh
 ```
 
@@ -59,20 +63,58 @@ Then open http://localhost:5173 in your browser to use the application.
 
 ### Manual Setup
 
-If you prefer to run the servers manually:
+If you prefer to run the servers manually or if the start script doesn't work:
 
 1. Start the Python backend:
 
    ```bash
    cd backend
    pip install -r requirements.txt
-   python server.py
+   python3 server.py
+   ```
+
+   You should see output like:
+
+   ```
+   INFO - Starting PDF extractor server on port 5000
+   * Serving Flask app 'server'
+   * Debug mode: on
+   INFO - WARNING: This is a development server. Do not use it in a production deployment.
+   * Running on all addresses (0.0.0.0)
+   * Running on http://127.0.0.1:5000
    ```
 
 2. In another terminal, start the frontend:
+
    ```bash
    npm run dev
    ```
+
+3. Verify both servers are running:
+   - Backend: Open http://localhost:5000/api/health in your browser, it should display `{"status":"ok"}`
+   - Frontend: Open http://localhost:5173 in your browser to access the application
+
+### Common Issues
+
+#### Backend Server Not Starting
+
+- **Error: "Address already in use"**: Another process is using port 5000
+  - Solution: Kill the existing process: `lsof -i :5000` then `kill <PID>`, or change the port in the server.py file
+- **Missing Dependencies**: Make sure you've installed requirements with `pip install -r requirements.txt`
+- **Python Version**: Ensure you're using Python 3.8 or higher
+
+#### PDF Extraction Fails
+
+- **"Could not extract text from PDF"**: This can happen if:
+  - The PDF has security settings preventing text extraction
+  - The PDF contains mostly images/scanned content without OCR
+  - The PDF uses custom fonts that can't be processed
+  - The backend server isn't running properly
+- **Solution**:
+  - Use a different PDF without security restrictions
+  - Manually paste your resume text in the text area
+  - Check if the backend server is running properly
+  - For scanned PDFs, use an OCR tool first to convert them to searchable PDFs
 
 ## Setting Up Google Gemini AI
 
@@ -112,10 +154,13 @@ The application uses a Python backend with PyMuPDF for accurate PDF text extract
 
 If you encounter issues with PDF text extraction:
 
-1. Make sure the Python backend server is running
-2. Check that your PDF is not password-protected
+1. Make sure the Python backend server is running. Check by opening http://localhost:5000/api/health
+2. Check that your PDF is not password-protected or contains security restrictions
 3. Ensure the PDF file is valid and not corrupted
-4. Try restarting both the frontend and backend servers
+4. For scanned PDFs, they may not contain extractable text - try using an OCR tool first
+5. Try restarting both the frontend and backend servers
+6. Check the Python backend logs for detailed error messages
+7. As a workaround, you can always manually paste your resume text
 
 ## Technologies Used
 

@@ -53,15 +53,26 @@ const ResumeUploader = ({ onUpload }: ResumeUploaderProps) => {
           const formattedText = formatResumeDataToText(resumeData);
           setResumeText(formattedText);
           toast.success("Resume uploaded and processed successfully");
-        } catch (error) {
+        } catch (error: any) {
           console.error("Error extracting text from PDF:", error);
-          const fileName = file.name || "Unknown file";
+          const fileName = error.fileName || file.name || "Unknown file";
+
+          // Set a more informative message based on the error type
+          let errorMessage =
+            "Could not extract text from PDF. Please paste your resume content manually.";
+          if (error.isContentError) {
+            errorMessage =
+              "Your PDF may be using security settings or contain mostly images that prevent text extraction. Please paste your resume manually.";
+          } else if (error.status >= 500) {
+            errorMessage =
+              "Server error processing your PDF. Please try again or paste your resume manually.";
+          }
+
           setResumeText(
             `Uploaded file: ${fileName}\n\nPlease paste your resume content manually if it couldn't be read automatically.`
           );
-          toast.warning(
-            "Could not extract text from PDF. Please paste your resume content manually."
-          );
+
+          toast.warning(errorMessage);
         }
       }
       // For other file types, attempt to read as text
@@ -105,12 +116,28 @@ const ResumeUploader = ({ onUpload }: ResumeUploaderProps) => {
       body: formData,
     });
 
+    const responseData = await response.json();
+
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || "Failed to extract text from PDF");
+      // Extract detailed error information if available
+      const errorMessage =
+        responseData.message ||
+        responseData.error ||
+        "Failed to extract text from PDF";
+      const fileName = responseData.fileName || file.name;
+
+      console.error("PDF extraction error:", errorMessage);
+
+      // Throw a more detailed error object
+      throw {
+        message: errorMessage,
+        fileName: fileName,
+        status: response.status,
+        isContentError: response.status === 422, // 422 indicates content extraction issue
+      };
     }
 
-    return await response.json();
+    return responseData;
   };
 
   // Format the structured resume data into a text format
